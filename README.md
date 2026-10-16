@@ -6,6 +6,77 @@ Notebook huấn luyện và đánh giá nhận dạng thực thể tiếng Việ
 - [Tải model/checkpoint trên Google Drive](https://drive.google.com/drive/folders/1tJ7miHhjHn3odFpXaUSnG7YyKooH7Ek8?usp=sharing)
 - [Dataset trên Hugging Face](https://huggingface.co/datasets/levandai1704/PAP_NER_dedup_70_15_15)
 
+## Kết quả thực nghiệm từ log
+
+Nguồn: log chạy ngày 16/10/2026 do người dùng cung cấp, với `xlm-roberta-base`, CRF và Hierarchical SupCon. Log ghi batch train/eval 128, max length 256, seed 42 và FP16. Các số dưới đây được đọc từ log, không chạy lại suy luận trong lần cập nhật repo này.
+
+### Dữ liệu và checkpoint
+
+| Split trong thư mục kết quả | Số câu | Số từ trong file CoNLL |
+| --- | ---: | ---: |
+| Train | 24,089 | 548,662 |
+| Dev | 5,162 | 117,653 |
+| Test | 5,162 | 117,462 |
+
+Đã chạy **20 epoch** (chỉ số log `0–19`). Checkpoint tốt nhất được lưu ở **epoch index 18**, tức epoch thứ 19, theo dev BIO-Macro-F1:
+
+| Metric trên dev tại checkpoint tốt nhất | Giá trị |
+| --- | ---: |
+| BIO-Macro-F1 | **0.987539** (98.7539%) |
+| BIO-Accuracy | 0.9978 |
+| Validation loss | 1.482762 |
+
+Dataset/revision ở phần cấu hình là cấu hình notebook; log không ghi revision Hugging Face. Số câu và số từ ở bảng trên được đếm từ các file split do người dùng cung cấp.
+
+### Test: kết quả tổng hợp
+
+Dùng **lượt đánh giá hoàn tất cuối cùng trong log**, có **5.162 câu và 117.462 từ**; hai số này khớp trực tiếp với file `test_data.txt` được cung cấp. Log còn chứa một lượt test hoàn tất trước đó có 10.278 câu; lượt đó không dùng trong các bảng dưới đây.
+
+| Metric trên test | Giá trị |
+| --- | ---: |
+| CoNLL Precision | **0.9840** (98.40%) |
+| CoNLL Recall | **0.9902** (99.02%) |
+| CoNLL F1 | **0.9871** (98.71%) |
+| BIO-Accuracy | 0.9977 (99.77%) |
+| BIO-Accuracy trên các từ gold khác `O` | 0.9920 (99.20%) |
+| BIO-Macro Precision | 0.9828 |
+| BIO-Macro Recall | 0.9929 |
+| BIO-Macro F1 | 0.9878 |
+
+Báo cáo CoNLL đếm **6.336 thực thể gold**, **6.376 thực thể dự đoán**, trong đó **6.274 khớp đúng**. Precision/Recall/F1 được chép đúng độ chính xác 4 chữ số thập phân của log.
+
+### Test: CoNLL theo loại thực thể
+
+| Loại | Precision | Recall | F1 | Số thực thể dự đoán |
+| --- | ---: | ---: | ---: | ---: |
+| CQ | 0.9874 | 0.9932 | 0.9903 | 2,064 |
+| NG | 0.9984 | 0.9984 | 0.9984 | 1,228 |
+| SL | 0.9755 | 1.0000 | 0.9876 | 204 |
+| VBPL | 0.9648 | 0.9713 | 0.9681 | 597 |
+| ĐT | 0.9790 | 0.9872 | 0.9831 | 2,283 |
+
+Cột cuối là số thực thể **dự đoán** (`pred_chunks`) do helper CoNLL in ra, không phải số thực thể gold.
+
+### Test: classification report theo nhãn BIO
+
+| Nhãn | Precision | Recall | F1 | Support (số từ gold) |
+| --- | ---: | ---: | ---: | ---: |
+| O | 0.9993 | 0.9984 | 0.9989 | 105,726 |
+| B-CQ | 0.9908 | 0.9961 | 0.9934 | 2,052 |
+| I-CQ | 0.9633 | 0.9918 | 0.9773 | 608 |
+| B-ĐT | 0.9877 | 0.9938 | 0.9908 | 2,264 |
+| I-ĐT | 0.9590 | 0.9770 | 0.9679 | 1,389 |
+| B-VBPL | 0.9780 | 0.9764 | 0.9772 | 593 |
+| I-VBPL | 0.9782 | 0.9908 | 0.9844 | 1,946 |
+| B-NG | 0.9984 | 0.9984 | 0.9984 | 1,228 |
+| I-NG | 1.0000 | 0.9992 | 0.9996 | 1,227 |
+| B-SL | 0.9900 | 1.0000 | 0.9950 | 199 |
+| I-SL | 0.9664 | 1.0000 | 0.9829 | 230 |
+| macro avg | 0.9828 | 0.9929 | 0.9878 | 117,462 |
+| weighted avg | 0.9978 | 0.9977 | 0.9977 | 117,462 |
+
+**Cách diễn giải:** CoNLL trong log dùng helper kế thừa baseline, nhận chuỗi BIO đã gộp các câu. Không gán các số CoNLL này cho bảng Strict/Partial/Entity Type/Exact của `nervaluate`. Thư mục được cung cấp chưa chứa bảng kết quả Bước 7, nên chưa có số liệu micro/macro của bốn tiêu chí đó. Các metric BIO ở trên được tính theo từng từ, bao gồm `O` trong macro/weighted report.
+
 ## Kiến trúc và loss
 
 Luồng xử lý: tokenizer XLM-R → encoder XLM-R → căn biểu diễn subword về từ → dropout + linear → CRF → giải mã Viterbi thành chuỗi nhãn BIO.
@@ -166,7 +237,7 @@ Cell test thông thường còn in báo cáo BIO và kết quả CoNLL kế th�
 - Cell metrics đọc được dictionary kết quả của `nervaluate` mới và tuple của API cũ; chuyển các đối tượng metric thành dictionary trước khi truy cập các trường.
 - Fast tokenizer và offset mapping được dùng để căn nhãn từ với subword XLM-R.
 
-Notebook được kiểm tra cấu trúc và cú pháp; các nhánh chuyển đổi API metrics được kiểm tra bằng dữ liệu giả lập. Repo chưa kèm kết quả benchmark được xác minh từ một lần chạy GPU đầy đủ.
+Notebook được kiểm tra cấu trúc và cú pháp; các nhánh chuyển đổi API metrics được kiểm tra bằng dữ liệu giả lập. Phần kết quả thực nghiệm ở trên được trích và đối chiếu từ log chạy do người dùng cung cấp.
 
 ## Tham khảo
 
