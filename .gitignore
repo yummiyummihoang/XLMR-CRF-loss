@@ -1,0 +1,12 @@
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+outputs/
+logs/
+hf_pap_ner_*/
+xlmr_base_hsupcon/
+*.cached
+*.pt
+*.pth
